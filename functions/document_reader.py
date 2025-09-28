@@ -14,7 +14,7 @@ from typing import Optional
 
 
 
-def document_reader(folder_path: str) -> dict:
+def _document_reader(folder_path: str) -> dict:
     """Function for reading documents from user
 
     Args:
@@ -57,7 +57,7 @@ def document_reader(folder_path: str) -> dict:
 
     return all_docs, all_tables
 
-def table_converting(docstore: Optional[object],llm: Optional[object]) -> list:
+def table_converting(folder_path: str,docstore: Optional[object],llm: Optional[object]) -> list:
     """converting tables for future embedding system. Generating uniq id for each table and list of possible questions
 
     Args:
@@ -67,14 +67,15 @@ def table_converting(docstore: Optional[object],llm: Optional[object]) -> list:
     Returns:
         list: list with pair of uniq id and all info about tables
     """
-    table_text, table_elements = document_reader("./dataset")
+    text_docs, table_elements = _document_reader(folder_path)
     structured_llm = llm.with_structured_output(TableQuestions)
     generate_questions_chain = (
         {"table_text":RunnablePassthrough} |
         ChatPromptTemplate.from_template("Сгенерируй гипотетические вопросы по таблице:\n{table_text}") |
         structured_llm
         )
-    pydantic_objects = generate_questions_chain.batch([el.page_content for el in table_elements], {"max_concurrency": 5})
+    pydantic_objects = generate_questions_chain.batch([el.page_content for el in table_elements], 
+                                                      {"max_concurrency": 5})
     
     question_docs = []
     #Для каждой таблицы генерируем уникальный id и заносим в docstore langchain
@@ -92,4 +93,4 @@ def table_converting(docstore: Optional[object],llm: Optional[object]) -> list:
             )
 
             question_docs.append(doc)
-    return question_docs, table_text
+    return question_docs, text_docs
